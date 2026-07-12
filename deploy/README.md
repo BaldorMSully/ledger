@@ -8,10 +8,8 @@ has been run against the NAS.
 ## 1. One-time setup on the NAS
 
 ```bash
-# As yourself, over SSH — not run by Claude
-mkdir -p /volume1/docker/ledger/{data/postgres,backups,scripts}
-# put ./data/postgres on THIS pool is fine (pool1, wherever docker/ live today) — but
-# ./backups below should be a bind mount to a DIFFERENT pool (pool2/pool3), not pool1.
+mkdir -p /volume1/docker/ledger/{data/postgres,scripts}
+mkdir -p /volume2/backups/ledger    # different pool than pool1, per the backup plan
 ```
 
 Create the Docker network the app and NPM will share:

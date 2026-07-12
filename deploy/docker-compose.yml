@@ -40,7 +40,7 @@ services:
     profiles: ["backup"]
     env_file: .env
     volumes:
-      - ./backups:/backups
+      - /volume2/backups/ledger:/backups
       - ./scripts:/scripts:ro
     entrypoint: ["/bin/sh", "/scripts/backup.sh"]
     networks:
