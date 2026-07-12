@@ -38,8 +38,10 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      # Image tags must be lowercase; github.repository_owner (BaldorMSully) isn't.
+      - run: echo "IMAGE_OWNER=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_ENV"
       - uses: docker/build-push-action@v6
         with:
           context: .
           push: true
-          tags: ghcr.io/${{ github.repository_owner }}/ledger:latest,ghcr.io/${{ github.repository_owner }}/ledger:${{ github.sha }}
+          tags: ghcr.io/${{ env.IMAGE_OWNER }}/ledger:latest,ghcr.io/${{ env.IMAGE_OWNER }}/ledger:${{ github.sha }}
