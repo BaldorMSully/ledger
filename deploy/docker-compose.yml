@@ -1,0 +1,51 @@
+# For the NAS at /volume1/docker/ledger/docker-compose.yml — NOT for local dev
+# (use the repo-root docker-compose.yml for that instead).
+#
+# Mirrors the arr-apps pattern: no published host ports, joins a dedicated network,
+# fronted entirely by the existing nginx-proxy-manager (NPM) container. Requires an
+# .env file alongside this compose file on the NAS (copy deploy/.env.nas.example)
+# and NPM already joined to the `finance-net` network (see deploy/README.md).
+#
+# POSTGRES_PASSWORD is a plain env var (via .env, gitignored + file-permissioned on the
+# NAS), not a Docker secret — this is a single-host compose deployment for two people,
+# and the app's own DATABASE_URL needs the same password anyway, so a secrets file would
+# just duplicate it without adding real isolation here.
+
+services:
+  app:
+    image: ghcr.io/baldormsully/ledger:latest
+    restart: unless-stopped
+    env_file: .env
+    depends_on:
+      - db
+    networks:
+      - finance-net
+
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      POSTGRES_USER: ledger
+      POSTGRES_DB: ledger
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+    networks:
+      - finance-net
+
+  # One-shot, not a steady-state daemon — same pattern as plaud-pipeline. Triggered by
+  # a NAS crontab entry (see deploy/README.md), not run continuously.
+  backup:
+    image: postgres:16-alpine
+    profiles: ["backup"]
+    env_file: .env
+    volumes:
+      - ./backups:/backups
+      - ./scripts:/scripts:ro
+    entrypoint: ["/bin/sh", "/scripts/backup.sh"]
+    networks:
+      - finance-net
+
+networks:
+  finance-net:
+    external: true

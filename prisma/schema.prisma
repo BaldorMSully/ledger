@@ -1,0 +1,344 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// --- Auth.js (next-auth v5) required models, PrismaAdapter shape ---
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("auth_accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("auth_sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("auth_verification_tokens")
+}
+
+// --- Core identity ---
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  image         String?
+  emailVerified DateTime?
+
+  accounts Account[]
+  sessions Session[]
+
+  memberships HouseholdMember[]
+
+  auditLogEntries AuditLog[]
+
+  createdAt DateTime @default(now())
+
+  @@map("app_users")
+}
+
+model Household {
+  id   String @id @default(cuid())
+  name String
+
+  members             HouseholdMember[]
+  financialAccounts   FinancialAccount[]
+  buckets             Bucket[]
+  transactions        Transaction[]
+  tags                Tag[]
+  categorizationRules CategorizationRule[]
+  recurringSeries     RecurringSeries[]
+  auditLogEntries     AuditLog[]
+
+  createdAt DateTime @default(now())
+
+  @@map("households")
+}
+
+model HouseholdMember {
+  id          String @id @default(cuid())
+  householdId String
+  userId      String
+  role        String @default("member")
+
+  household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  joinedAt DateTime @default(now())
+
+  @@unique([householdId, userId])
+  @@map("household_members")
+}
+
+// --- Financial domain ---
+
+enum FinancialAccountType {
+  checking
+  savings
+  credit_card
+  cash
+  loan
+  investment
+}
+
+model FinancialAccount {
+  id            String               @id @default(cuid())
+  householdId   String
+  name          String
+  accountType   FinancialAccountType
+  institutionName String?
+  isManual      Boolean              @default(true)
+  currency      String               @default("USD")
+  isArchived    Boolean              @default(false)
+  createdBy     String?
+
+  household    Household     @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+  holdings     Holding[]
+  balanceSnapshots AccountBalanceSnapshot[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("financial_accounts")
+}
+
+model Bucket {
+  id          String  @id @default(cuid())
+  householdId String
+  name        String
+  bucketGroup String? // e.g. needs / wants / savings
+  isActive    Boolean @default(true)
+  sortOrder   Int     @default(0)
+
+  household   Household          @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  allocations BucketAllocation[]
+  transactions Transaction[]
+  rules       CategorizationRule[]
+
+  createdAt DateTime @default(now())
+
+  @@map("buckets")
+}
+
+model BucketAllocation {
+  id       String   @id @default(cuid())
+  bucketId String
+  month    DateTime // stored as first-of-month
+  allocatedAmountCents Int
+
+  bucket Bucket @relation(fields: [bucketId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([bucketId, month])
+  @@map("bucket_allocations")
+}
+
+enum TransactionType {
+  spend
+  income
+  transfer
+}
+
+enum TransactionSource {
+  manual
+  csv_import
+  plaid
+}
+
+enum CategorizationSource {
+  manual
+  rule
+  uncategorized
+}
+
+model RecurringSeries {
+  id          String @id @default(cuid())
+  householdId String
+  label       String
+
+  household    Household     @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+
+  createdAt DateTime @default(now())
+
+  @@map("recurring_series")
+}
+
+model Transaction {
+  id          String   @id @default(cuid())
+  householdId String
+  accountId   String?
+
+  amountCents      Int // signed: negative = spend, positive = income, by convention
+  transactionDate  DateTime
+  postedDate       DateTime?
+  transactionType  TransactionType
+
+  linkedTransactionId String?      @unique
+  linkedTransaction   Transaction? @relation("TransferLink", fields: [linkedTransactionId], references: [id])
+  linkedFrom          Transaction? @relation("TransferLink")
+
+  isRecurring       Boolean          @default(false)
+  recurringSeriesId String?
+  recurringSeries   RecurringSeries? @relation(fields: [recurringSeriesId], references: [id])
+
+  bucketId String?
+  bucket   Bucket? @relation(fields: [bucketId], references: [id])
+
+  merchantNameRaw String?
+  description     String?
+
+  source     TransactionSource @default(manual)
+  externalId String? // dedup key for import/Plaid re-sync
+
+  categorizationSource CategorizationSource @default(uncategorized)
+
+  tags TransactionTag[]
+
+  household Household         @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  account   FinancialAccount? @relation(fields: [accountId], references: [id])
+
+  createdBy String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([accountId, externalId])
+  @@index([householdId, transactionDate])
+  @@index([bucketId])
+  @@map("transactions")
+}
+
+model Tag {
+  id          String @id @default(cuid())
+  householdId String
+  name        String
+
+  household    Household        @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  transactions TransactionTag[]
+
+  @@unique([householdId, name])
+  @@map("tags")
+}
+
+model TransactionTag {
+  transactionId String
+  tagId         String
+
+  transaction Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  tag         Tag         @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([transactionId, tagId])
+  @@map("transaction_tags")
+}
+
+model CategorizationRule {
+  id          String  @id @default(cuid())
+  householdId String
+  priority    Int     @default(0)
+  matchConditions Json // e.g. { merchantContains: "STARBUCKS", amountMax: -500 }
+  targetBucketId  String?
+  enabled     Boolean @default(true)
+  timesApplied Int    @default(0)
+  lastAppliedAt DateTime?
+
+  household   Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  targetBucket Bucket?  @relation(fields: [targetBucketId], references: [id])
+
+  createdBy String?
+  createdAt DateTime @default(now())
+
+  @@map("categorization_rules")
+}
+
+// --- Investing (Phase 4, additive; shares only FinancialAccount/Household) ---
+
+model Holding {
+  id        String  @id @default(cuid())
+  accountId String
+  ticker    String
+  quantity  Decimal @db.Decimal(20, 8)
+  costBasisCents Int?
+
+  account FinancialAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  updatedAt DateTime @updatedAt
+
+  @@unique([accountId, ticker])
+  @@map("holdings")
+}
+
+model AccountBalanceSnapshot {
+  id        String   @id @default(cuid())
+  accountId String
+  date      DateTime
+  balanceCents Int
+
+  account FinancialAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@unique([accountId, date])
+  @@map("account_balance_snapshots")
+}
+
+// --- Audit ---
+
+enum AuditAction {
+  create
+  update
+  delete
+}
+
+model AuditLog {
+  id          String      @id @default(cuid())
+  householdId String
+  entityType  String
+  entityId    String
+  actorUserId String
+  action      AuditAction
+  diff        Json?
+  timestamp   DateTime    @default(now())
+
+  household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  actor     User      @relation(fields: [actorUserId], references: [id])
+
+  @@index([householdId, entityType, entityId])
+  @@map("audit_log")
+}
