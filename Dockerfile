@@ -24,6 +24,13 @@ COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
+# Standalone output only traces what server.js needs at runtime — it doesn't include the
+# Prisma CLI, schema, or config. Needed so `docker compose exec app npx prisma migrate
+# deploy` works in place, without a network install and without a separate migrate image.
+COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
+COPY --from=builder --chown=nextjs:nodejs /app/prisma.config.ts ./prisma.config.ts
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
+
 USER nextjs
 EXPOSE 3000
 ENV PORT=3000
