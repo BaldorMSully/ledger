@@ -1,7 +1,7 @@
 import { requireHousehold } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { centsToDollarsString } from "@/lib/money";
-import { monthInputValue, parseMonthInput, startOfMonth } from "@/lib/dates";
+import { monthInputValue, parseMonthParam } from "@/lib/dates";
 import { createBucket, archiveBucket, setAllocation } from "./actions";
 
 export default async function BucketsPage({
@@ -11,7 +11,7 @@ export default async function BucketsPage({
 }) {
   const { household } = await requireHousehold();
   const { month: monthParam } = await searchParams;
-  const month = monthParam ? parseMonthInput(monthParam) : startOfMonth(new Date());
+  const month = parseMonthParam(monthParam);
   const monthValue = monthInputValue(month);
 
   const buckets = await prisma.bucket.findMany({

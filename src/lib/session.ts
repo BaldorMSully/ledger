@@ -35,12 +35,35 @@ export const requireHousehold = cache(async () => {
     return { session, household: existingMembership.household, userId };
   }
 
-  const household =
-    (await prisma.household.findFirst()) ??
-    (await prisma.household.create({ data: { name: SHARED_HOUSEHOLD_NAME } }));
+  // Serializable + ordered so two concurrent first sign-ins can't each create a
+  // household (one aborts on the serialization conflict and retries into the existing
+  // row). Household has no unique column to lean on, so isolation is the guard here.
+  const getOrCreateHousehold = () =>
+    prisma.$transaction(
+      async (tx) => {
+        const existing = await tx.household.findFirst({
+          orderBy: { createdAt: "asc" },
+        });
+        return (
+          existing ??
+          tx.household.create({ data: { name: SHARED_HOUSEHOLD_NAME } })
+        );
+      },
+      { isolationLevel: "Serializable" }
+    );
 
-  const membership = await prisma.householdMember.create({
-    data: { householdId: household.id, userId },
+  let household;
+  try {
+    household = await getOrCreateHousehold();
+  } catch {
+    household = await getOrCreateHousehold();
+  }
+
+  // Upsert so a double-submit can't trip the (householdId, userId) unique constraint.
+  const membership = await prisma.householdMember.upsert({
+    where: { householdId_userId: { householdId: household.id, userId } },
+    create: { householdId: household.id, userId },
+    update: {},
     include: { household: true },
   });
 

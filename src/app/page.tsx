@@ -2,7 +2,7 @@ import Link from "next/link";
 import { requireHousehold } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { formatCents } from "@/lib/money";
-import { addMonths, formatMonth, monthInputValue, parseMonthInput, startOfMonth } from "@/lib/dates";
+import { addMonths, formatMonth, monthInputValue, parseMonthParam } from "@/lib/dates";
 
 export default async function DashboardPage({
   searchParams,
@@ -12,7 +12,7 @@ export default async function DashboardPage({
   const { household } = await requireHousehold();
   const { month: monthParam } = await searchParams;
 
-  const month = monthParam ? parseMonthInput(monthParam) : startOfMonth(new Date());
+  const month = parseMonthParam(monthParam);
   const nextMonthStart = addMonths(month, 1);
 
   const buckets = await prisma.bucket.findMany({

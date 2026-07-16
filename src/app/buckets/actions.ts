@@ -68,6 +68,9 @@ export async function setAllocation(formData: FormData) {
 
   const month = parseMonthInput(monthValue);
   const allocatedAmountCents = dollarsToCents(amount);
+  if (allocatedAmountCents < 0) {
+    throw new Error("Allocation must not be negative");
+  }
 
   const allocation = await prisma.bucketAllocation.upsert({
     where: { bucketId_month: { bucketId, month } },

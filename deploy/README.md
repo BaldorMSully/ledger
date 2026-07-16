@@ -59,10 +59,19 @@ limitation as the `plaud-pipeline` setup. You'll need to add this yourself via
 0 3 * * * flock -n /tmp/ledger-backup.lock docker compose -f /volume1/docker/ledger/docker-compose.yml --profile backup run --rm backup >> /volume1/docker/ledger/backup.log 2>&1
 ```
 
-This runs `deploy/scripts/backup.sh` — dumps + gzips the DB into `./backups`, prunes dumps
-older than 21 days, and posts to `ntfy.sh/nas-homelab-ledger-backup` on failure (subscribe
-to that topic the same way as the existing SMART-alert one; deliberately a new topic, not
-reused, so alert sources stay distinguishable).
+This runs `deploy/scripts/backup.sh` — dumps + gzips the DB into `./backups`, verifies the
+dump actually completed (pipefail + the pg_dump completion marker, so a failed dump can't
+masquerade as a tiny valid gzip), prunes dumps older than 21 days **except first-of-month
+dumps** (kept indefinitely so an unnoticed problem can't age out every good backup), and
+posts to `ntfy.sh/nas-homelab-ledger-backup` on failure (subscribe to that topic the same
+way as the existing SMART-alert one; deliberately a new topic, not reused, so alert
+sources stay distinguishable).
+
+**Success signal:** set `HEALTHCHECK_URL` in `.env` to a healthchecks.io check URL — the
+script pings it on success and `<url>/fail` on failure, and healthchecks alerts you when
+the nightly ping *doesn't* arrive (which also catches the cron never firing at all — a
+failure-only alert can't). If unset, the script posts successes to the ntfy topic instead
+so there's still a positive signal.
 
 **Off-box copy — not scripted here, needs your own credentials to wire up.** Once the
 nightly local dump is working, add a second step (either inside `backup.sh` or a separate

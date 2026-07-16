@@ -12,9 +12,24 @@ describe("dollarsToCents", () => {
   it("parses negative amounts", () => {
     expect(dollarsToCents("-3.00")).toBe(-300);
   });
+  it("strips currency symbols, commas, and spaces", () => {
+    expect(dollarsToCents("$12.50")).toBe(1250);
+    expect(dollarsToCents("1,200")).toBe(120000);
+    expect(dollarsToCents("-$3.00")).toBe(-300);
+    expect(dollarsToCents(" $1,234.56 ")).toBe(123456);
+  });
+  it("accepts bare-cents input", () => {
+    expect(dollarsToCents(".50")).toBe(50);
+    expect(dollarsToCents("-.5")).toBe(-50);
+  });
   it("rejects garbage input", () => {
     expect(() => dollarsToCents("abc")).toThrow();
     expect(() => dollarsToCents("12.999")).toThrow();
+    expect(() => dollarsToCents("$")).toThrow();
+    expect(() => dollarsToCents("")).toThrow();
+  });
+  it("rejects amounts that would overflow the Int column", () => {
+    expect(() => dollarsToCents("99999999999")).toThrow();
   });
 });
 

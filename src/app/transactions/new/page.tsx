@@ -1,5 +1,6 @@
 import { requireHousehold } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
+import { todayInputValue } from "@/lib/dates";
 import { createTransaction } from "../actions";
 
 export default async function NewTransactionPage() {
@@ -16,7 +17,7 @@ export default async function NewTransactionPage() {
     }),
   ]);
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayInputValue();
 
   return (
     <div className="flex flex-col gap-6">

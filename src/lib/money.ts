@@ -21,16 +21,24 @@ export function formatCents(
   );
 }
 
-/** Parses a user-entered dollar string (e.g. "12.5", "-3.00", "12") into integer cents. */
+// The amount columns are 4-byte Postgres Ints (max ~$21.4M in cents); cap well below
+// that so oversized input is a validation error, not a database error.
+export const MAX_AMOUNT_CENTS = 1_000_000_000; // $10M
+
+/** Parses a user-entered dollar string (e.g. "12.5", "-3.00", "$1,200", ".50") into integer cents. */
 export function dollarsToCents(input: string): number {
-  const trimmed = input.trim();
-  if (!/^-?\d+(\.\d{1,2})?$/.test(trimmed)) {
+  // People type money the way money looks — strip $, thousands separators, and spaces.
+  const trimmed = input.trim().replace(/[$,\s]/g, "");
+  if (!/^-?(\d+(\.\d{1,2})?|\.\d{1,2})$/.test(trimmed)) {
     throw new Error(`Invalid dollar amount: "${input}"`);
   }
   const negative = trimmed.startsWith("-");
   const [dollarsPart, centsPart = ""] = trimmed.replace("-", "").split(".");
   const cents =
-    parseInt(dollarsPart, 10) * 100 + parseInt(centsPart.padEnd(2, "0"), 10);
+    parseInt(dollarsPart || "0", 10) * 100 + parseInt(centsPart.padEnd(2, "0"), 10);
+  if (cents > MAX_AMOUNT_CENTS) {
+    throw new Error(`Amount out of range: "${input}"`);
+  }
   return negative ? -cents : cents;
 }
 
