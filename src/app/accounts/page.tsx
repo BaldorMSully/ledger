@@ -26,19 +26,19 @@ export default async function AccountsPage() {
       <table className="w-full text-left text-sm">
         <thead>
           <tr className="border-b border-black/10 dark:border-white/10">
-            <th className="py-2">Name</th>
-            <th className="py-2">Type</th>
-            <th className="py-2" />
+            <th className="py-2 pr-3 pl-0">Name</th>
+            <th className="py-2 px-3">Type</th>
+            <th className="py-2 pl-3 pr-0" />
           </tr>
         </thead>
         <tbody>
           {accounts.map((account) => (
             <tr key={account.id} className="border-b border-black/5 dark:border-white/5">
-              <td className="py-2">{account.name}</td>
-              <td className="py-2 text-zinc-500 dark:text-zinc-400">
+              <td className="py-2 pr-3 pl-0">{account.name}</td>
+              <td className="py-2 px-3 text-zinc-500 dark:text-zinc-400">
                 {account.accountType.replace("_", " ")}
               </td>
-              <td className="py-2 text-right">
+              <td className="py-2 pl-3 pr-0 text-right">
                 <form action={archiveAccount}>
                   <input type="hidden" name="accountId" value={account.id} />
                   <button type="submit" className="text-red-600 underline dark:text-red-400">

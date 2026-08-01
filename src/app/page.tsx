@@ -64,6 +64,17 @@ export default async function DashboardPage({
     spendByBucket.map((row) => [row.bucketId, row._sum.amountCents ?? 0])
   );
 
+  const uncategorized = await prisma.transaction.aggregate({
+    where: {
+      householdId: household.id,
+      transactionType: "spend",
+      transactionDate: { gte: month, lt: nextMonthStart },
+      bucketId: null,
+    },
+    _sum: { amountCents: true },
+    _count: true,
+  });
+
   const prevHref = `/?month=${monthInputValue(addMonths(month, -1))}`;
   const nextHref = `/?month=${monthInputValue(addMonths(month, 1))}`;
 
@@ -100,6 +111,17 @@ export default async function DashboardPage({
           ? household.lastCheckInCompletedAt.toISOString().slice(0, 10)
           : "never — every transaction below is flagged as new"}
       </p>
+
+      {uncategorized._count > 0 && (
+        <Link
+          href="/transactions?bucket=unclassified"
+          className="text-sm text-amber-600 underline dark:text-amber-400"
+        >
+          {uncategorized._count} uncategorized transaction
+          {uncategorized._count === 1 ? "" : "s"} this month (
+          {formatCents(-(uncategorized._sum.amountCents ?? 0))} unaccounted for)
+        </Link>
+      )}
 
       {headsUpNotes.length > 0 && (
         <div className="flex flex-col gap-2 rounded border border-amber-500/30 bg-amber-500/5 p-4">
@@ -142,11 +164,11 @@ export default async function DashboardPage({
         <table className="w-full text-left text-sm">
           <thead>
             <tr className="border-b border-black/10 dark:border-white/10">
-              <th className="py-2">Bucket</th>
-              <th className="py-2 text-right">Allocated</th>
-              <th className="py-2 text-right">Spent</th>
-              <th className="py-2 text-right">Remaining</th>
-              <th className="py-2 text-right">Pacing</th>
+              <th className="py-2 pr-3 pl-0">Bucket</th>
+              <th className="py-2 px-3 text-right">Allocated</th>
+              <th className="py-2 px-3 text-right">Spent</th>
+              <th className="py-2 px-3 text-right">Remaining</th>
+              <th className="py-2 pl-3 pr-0 text-right">Pacing</th>
             </tr>
           </thead>
           <tbody>
@@ -162,7 +184,7 @@ export default async function DashboardPage({
                 budgetUsedPercent - monthElapsedPercent > PACING_WARNING_THRESHOLD;
               return (
                 <tr key={bucket.id} className="border-b border-black/5 dark:border-white/5">
-                  <td className="py-2">
+                  <td className="py-2 pr-3 pl-0">
                     <Link
                       href={`/transactions?bucketId=${bucket.id}&month=${monthValue}`}
                       className="underline"
@@ -170,15 +192,15 @@ export default async function DashboardPage({
                       {bucket.name}
                     </Link>
                   </td>
-                  <td className="py-2 text-right">{formatCents(allocatedCents)}</td>
-                  <td className="py-2 text-right">{formatCents(spentCents)}</td>
+                  <td className="py-2 px-3 text-right">{formatCents(allocatedCents)}</td>
+                  <td className="py-2 px-3 text-right">{formatCents(spentCents)}</td>
                   <td
-                    className={`py-2 text-right ${remainingCents < 0 ? "text-red-600 dark:text-red-400" : ""}`}
+                    className={`py-2 px-3 text-right ${remainingCents < 0 ? "text-red-600 dark:text-red-400" : ""}`}
                   >
                     {formatCents(remainingCents)}
                   </td>
                   <td
-                    className={`py-2 text-right text-xs ${isOutpacing ? "text-red-600 dark:text-red-400" : "text-zinc-500 dark:text-zinc-400"}`}
+                    className={`py-2 pl-3 pr-0 text-right text-xs ${isOutpacing ? "text-red-600 dark:text-red-400" : "text-zinc-500 dark:text-zinc-400"}`}
                   >
                     {budgetUsedPercent === null
                       ? "no budget set"

@@ -10,6 +10,7 @@ export function Nav({ userName }: { userName: string }) {
           <Link href="/transactions">Transactions</Link>
           <Link href="/buckets">Buckets</Link>
           <Link href="/accounts">Accounts</Link>
+          <Link href="/settings">Settings</Link>
         </nav>
         <div className="flex items-center gap-4 text-sm">
           <span className="text-zinc-500 dark:text-zinc-400">{userName}</span>

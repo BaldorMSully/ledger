@@ -91,13 +91,13 @@ export default async function TransactionsPage({
       <table className="w-full text-left text-sm">
         <thead>
           <tr className="border-b border-black/10 dark:border-white/10">
-            <th className="py-2">Date</th>
-            <th className="py-2">Description</th>
-            <th className="py-2">Account</th>
-            <th className="py-2">Bucket</th>
-            <th className="py-2 text-right">Amount</th>
-            <th className="py-2">Last edited</th>
-            <th className="py-2" />
+            <th className="py-2 pr-3 pl-0">Date</th>
+            <th className="py-2 px-3">Description</th>
+            <th className="py-2 px-3">Account</th>
+            <th className="py-2 px-3">Bucket</th>
+            <th className="py-2 px-3 text-right">Amount</th>
+            <th className="py-2 px-3">Last edited</th>
+            <th className="py-2 pl-3 pr-0" />
           </tr>
         </thead>
         <tbody>
@@ -106,7 +106,7 @@ export default async function TransactionsPage({
             const isNew = !lastCheckIn || tx.createdAt > lastCheckIn;
             return (
               <tr key={tx.id} className="border-b border-black/5 dark:border-white/5">
-                <td className="py-2 whitespace-nowrap">
+                <td className="py-2 pr-3 pl-0 whitespace-nowrap">
                   {tx.transactionDate.toISOString().slice(0, 10)}
                   {isNew && (
                     <span className="ml-2 rounded-full bg-blue-600/10 px-2 py-0.5 text-xs text-blue-600 dark:text-blue-400">
@@ -114,11 +114,11 @@ export default async function TransactionsPage({
                     </span>
                   )}
                 </td>
-                <td className="py-2">{tx.description ?? tx.merchantNameRaw ?? "—"}</td>
-                <td className="py-2 text-zinc-500 dark:text-zinc-400">
+                <td className="py-2 px-3">{tx.description ?? tx.merchantNameRaw ?? "—"}</td>
+                <td className="py-2 px-3 text-zinc-500 dark:text-zinc-400">
                   {tx.account?.name ?? "—"}
                 </td>
-                <td className="py-2">
+                <td className="py-2 px-3">
                   <form action={updateTransactionBucket} className="flex items-center gap-1">
                     <input type="hidden" name="transactionId" value={tx.id} />
                     <select
@@ -140,14 +140,14 @@ export default async function TransactionsPage({
                   </form>
                 </td>
                 <td
-                  className={`py-2 text-right ${tx.amountCents < 0 ? "text-red-600 dark:text-red-400" : "text-green-600 dark:text-green-400"}`}
+                  className={`py-2 px-3 text-right ${tx.amountCents < 0 ? "text-red-600 dark:text-red-400" : "text-green-600 dark:text-green-400"}`}
                 >
                   {formatCents(tx.amountCents)}
                 </td>
-                <td className="py-2 text-xs text-zinc-500 dark:text-zinc-400">
+                <td className="py-2 px-3 text-xs text-zinc-500 dark:text-zinc-400">
                   {edited ? `${edited.actorName}` : "—"}
                 </td>
-                <td className="py-2 text-right whitespace-nowrap">
+                <td className="py-2 pl-3 pr-0 text-right whitespace-nowrap">
                   <Link href={`/transactions/${tx.id}/edit`} className="underline">
                     Edit
                   </Link>

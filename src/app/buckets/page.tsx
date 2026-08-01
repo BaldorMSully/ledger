@@ -32,20 +32,20 @@ export default async function BucketsPage({
       <table className="w-full text-left text-sm">
         <thead>
           <tr className="border-b border-black/10 dark:border-white/10">
-            <th className="py-2">Name</th>
-            <th className="py-2">Group</th>
-            <th className="py-2">Allocated this month</th>
-            <th className="py-2" />
+            <th className="py-2 pr-3 pl-0">Name</th>
+            <th className="py-2 px-3">Group</th>
+            <th className="py-2 px-3">Allocated this month</th>
+            <th className="py-2 pl-3 pr-0" />
           </tr>
         </thead>
         <tbody>
           {buckets.map((bucket) => (
             <tr key={bucket.id} className="border-b border-black/5 dark:border-white/5">
-              <td className="py-2">{bucket.name}</td>
-              <td className="py-2 text-zinc-500 dark:text-zinc-400">
+              <td className="py-2 pr-3 pl-0">{bucket.name}</td>
+              <td className="py-2 px-3 text-zinc-500 dark:text-zinc-400">
                 {bucket.bucketGroup ?? "—"}
               </td>
-              <td className="py-2">
+              <td className="py-2 px-3">
                 <form action={setAllocation} className="flex items-center gap-2">
                   <input type="hidden" name="bucketId" value={bucket.id} />
                   <input type="hidden" name="month" value={monthValue} />
@@ -63,7 +63,7 @@ export default async function BucketsPage({
                   </button>
                 </form>
               </td>
-              <td className="py-2 text-right">
+              <td className="py-2 pl-3 pr-0 text-right">
                 <form action={archiveBucket}>
                   <input type="hidden" name="bucketId" value={bucket.id} />
                   <button type="submit" className="text-red-600 underline dark:text-red-400">
