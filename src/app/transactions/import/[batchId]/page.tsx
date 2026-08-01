@@ -17,7 +17,7 @@ export default async function CsvImportPreviewPage({
     where: { id: batchId, householdId: household.id },
     include: {
       account: true,
-      rows: { orderBy: { parsedDate: "desc" } },
+      rows: { orderBy: [{ parsedDate: "desc" }, { id: "asc" }] },
     },
   });
   if (!batch) notFound();

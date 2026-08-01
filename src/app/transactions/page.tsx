@@ -103,7 +103,7 @@ export default async function TransactionsPage({
         <tbody>
           {transactions.map((tx) => {
             const edited = lastEdited.get(tx.id);
-            const isNew = !lastCheckIn || tx.transactionDate > lastCheckIn;
+            const isNew = !lastCheckIn || tx.createdAt > lastCheckIn;
             return (
               <tr key={tx.id} className="border-b border-black/5 dark:border-white/5">
                 <td className="py-2 whitespace-nowrap">
@@ -122,6 +122,7 @@ export default async function TransactionsPage({
                   <form action={updateTransactionBucket} className="flex items-center gap-1">
                     <input type="hidden" name="transactionId" value={tx.id} />
                     <select
+                      key={tx.bucketId ?? "none"}
                       name="bucketId"
                       defaultValue={tx.bucketId ?? ""}
                       className="rounded border border-black/10 bg-transparent px-1 py-0.5 text-xs dark:border-white/20"
