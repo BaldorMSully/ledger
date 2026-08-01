@@ -57,3 +57,22 @@ export function parseMonthParam(value: string | undefined): Date {
 export function monthInputValue(date: Date): string {
   return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
 }
+
+/** Number of days in the month starting at `monthStart` (a first-of-month UTC Date). */
+function daysInMonth(monthStart: Date): number {
+  const nextMonthStart = addMonths(monthStart, 1);
+  return Math.round((nextMonthStart.getTime() - monthStart.getTime()) / (24 * 60 * 60 * 1000));
+}
+
+/**
+ * How far through the household's current calendar month "now" is, as a percentage
+ * (day-of-month granularity, not intraday) — used to compare against % of budget used.
+ * Always divides by the real number of days in the current month, so this doesn't
+ * misfire in February or at a month boundary the way a hardcoded "/30" would.
+ */
+export function monthProgressPercent(now: Date = new Date()): number {
+  const [year, month, day] = todayInputValue(now).split("-").map(Number);
+  const monthStart = new Date(Date.UTC(year, month - 1, 1));
+  const totalDays = daysInMonth(monthStart);
+  return Math.round((day / totalDays) * 10000) / 100;
+}

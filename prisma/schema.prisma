@@ -77,6 +77,8 @@ model Household {
   id   String @id @default(cuid())
   name String
 
+  lastCheckInCompletedAt DateTime?
+
   members             HouseholdMember[]
   financialAccounts   FinancialAccount[]
   buckets             Bucket[]
@@ -85,6 +87,8 @@ model Household {
   categorizationRules CategorizationRule[]
   recurringSeries     RecurringSeries[]
   auditLogEntries     AuditLog[]
+  headsUpNotes        HeadsUpNote[]
+  csvImportBatches    CsvImportBatch[]
 
   createdAt DateTime @default(now())
 
@@ -118,20 +122,21 @@ enum FinancialAccountType {
 }
 
 model FinancialAccount {
-  id            String               @id @default(cuid())
-  householdId   String
-  name          String
-  accountType   FinancialAccountType
+  id              String               @id @default(cuid())
+  householdId     String
+  name            String
+  accountType     FinancialAccountType
   institutionName String?
-  isManual      Boolean              @default(true)
-  currency      String               @default("USD")
-  isArchived    Boolean              @default(false)
-  createdBy     String?
+  isManual        Boolean              @default(true)
+  currency        String               @default("USD")
+  isArchived      Boolean              @default(false)
+  createdBy       String?
 
-  household    Household     @relation(fields: [householdId], references: [id], onDelete: Cascade)
-  transactions Transaction[]
-  holdings     Holding[]
+  household        Household                @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  transactions     Transaction[]
+  holdings         Holding[]
   balanceSnapshots AccountBalanceSnapshot[]
+  csvImportBatches CsvImportBatch[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -147,10 +152,10 @@ model Bucket {
   isActive    Boolean @default(true)
   sortOrder   Int     @default(0)
 
-  household   Household          @relation(fields: [householdId], references: [id], onDelete: Cascade)
-  allocations BucketAllocation[]
+  household    Household            @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  allocations  BucketAllocation[]
   transactions Transaction[]
-  rules       CategorizationRule[]
+  rules        CategorizationRule[]
 
   createdAt DateTime @default(now())
 
@@ -158,9 +163,9 @@ model Bucket {
 }
 
 model BucketAllocation {
-  id       String   @id @default(cuid())
-  bucketId String
-  month    DateTime // stored as first-of-month
+  id                   String   @id @default(cuid())
+  bucketId             String
+  month                DateTime // stored as first-of-month
   allocatedAmountCents Int
 
   bucket Bucket @relation(fields: [bucketId], references: [id], onDelete: Cascade)
@@ -204,14 +209,14 @@ model RecurringSeries {
 }
 
 model Transaction {
-  id          String   @id @default(cuid())
+  id          String  @id @default(cuid())
   householdId String
   accountId   String?
 
-  amountCents      Int // signed: negative = spend, positive = income, by convention
-  transactionDate  DateTime
-  postedDate       DateTime?
-  transactionType  TransactionType
+  amountCents     Int // signed: negative = spend, positive = income, by convention
+  transactionDate DateTime
+  postedDate      DateTime?
+  transactionType TransactionType
 
   linkedTransactionId String?      @unique
   linkedTransaction   Transaction? @relation("TransferLink", fields: [linkedTransactionId], references: [id])
@@ -236,6 +241,8 @@ model Transaction {
 
   household Household         @relation(fields: [householdId], references: [id], onDelete: Cascade)
   account   FinancialAccount? @relation(fields: [accountId], references: [id])
+
+  csvImportRow CsvImportRow?
 
   createdBy String?
   createdAt DateTime @default(now())
@@ -271,17 +278,17 @@ model TransactionTag {
 }
 
 model CategorizationRule {
-  id          String  @id @default(cuid())
-  householdId String
-  priority    Int     @default(0)
+  id              String    @id @default(cuid())
+  householdId     String
+  priority        Int       @default(0)
   matchConditions Json // e.g. { merchantContains: "STARBUCKS", amountMax: -500 }
   targetBucketId  String?
-  enabled     Boolean @default(true)
-  timesApplied Int    @default(0)
-  lastAppliedAt DateTime?
+  enabled         Boolean   @default(true)
+  timesApplied    Int       @default(0)
+  lastAppliedAt   DateTime?
 
-  household   Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
-  targetBucket Bucket?  @relation(fields: [targetBucketId], references: [id])
+  household    Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  targetBucket Bucket?   @relation(fields: [targetBucketId], references: [id])
 
   createdBy String?
   createdAt DateTime @default(now())
@@ -289,13 +296,92 @@ model CategorizationRule {
   @@map("categorization_rules")
 }
 
+// --- Budget check-in (specs/001-budget-checkin) ---
+
+enum HeadsUpNoteStatus {
+  open
+  resolved
+}
+
+model HeadsUpNote {
+  id          String            @id @default(cuid())
+  householdId String
+  body        String
+  status      HeadsUpNoteStatus @default(open)
+
+  household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+
+  createdBy  String?
+  createdAt  DateTime  @default(now())
+  resolvedAt DateTime?
+
+  @@map("heads_up_notes")
+}
+
+enum CsvImportBatchStatus {
+  pending
+  committed
+}
+
+model CsvImportBatch {
+  id                  String               @id @default(cuid())
+  householdId         String
+  accountId           String
+  fileName            String
+  status              CsvImportBatchStatus @default(pending)
+  // Pending-status rows from the source CSV are filtered out before classification and
+  // never get a CsvImportRow of their own (plan.md §7) - this is the only record of them.
+  pendingSkippedCount Int                  @default(0)
+
+  household Household        @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  account   FinancialAccount @relation(fields: [accountId], references: [id])
+  rows      CsvImportRow[]
+
+  createdBy   String?
+  createdAt   DateTime  @default(now())
+  committedAt DateTime?
+
+  @@map("csv_import_batches")
+}
+
+enum CsvImportRowStatus {
+  new
+  duplicate
+  unparseable
+  committed
+}
+
+model CsvImportRow {
+  id      String @id @default(cuid())
+  batchId String
+
+  rawLine Json
+
+  parsedDate        DateTime?
+  parsedAmountCents Int?
+  parsedDescription String?
+
+  status            CsvImportRowStatus @default(new)
+  errorMessage      String?
+  // Manual escape hatch for an exact-match false positive (see plan.md §7) - the dedup rule
+  // stays a strict exact match; this only lets a household member confirm a flagged
+  // duplicate is a genuinely separate transaction before commit.
+  approvedForImport Boolean            @default(false)
+
+  batch         CsvImportBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  transactionId String?        @unique
+  transaction   Transaction?   @relation(fields: [transactionId], references: [id])
+
+  @@map("csv_import_rows")
+}
+
 // --- Investing (Phase 4, additive; shares only FinancialAccount/Household) ---
 
 model Holding {
-  id        String  @id @default(cuid())
-  accountId String
-  ticker    String
-  quantity  Decimal @db.Decimal(20, 8)
+  id             String  @id @default(cuid())
+  accountId      String
+  ticker         String
+  quantity       Decimal @db.Decimal(20, 8)
   costBasisCents Int?
 
   account FinancialAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
@@ -307,9 +393,9 @@ model Holding {
 }
 
 model AccountBalanceSnapshot {
-  id        String   @id @default(cuid())
-  accountId String
-  date      DateTime
+  id           String   @id @default(cuid())
+  accountId    String
+  date         DateTime
   balanceCents Int
 
   account FinancialAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)

@@ -73,6 +73,109 @@ export async function createTransaction(formData: FormData) {
   redirect("/transactions");
 }
 
+export async function editTransaction(formData: FormData) {
+  const { household, userId } = await requireHousehold();
+
+  const transactionId = String(formData.get("transactionId") ?? "");
+  const accountId = String(formData.get("accountId") ?? "") || null;
+  const bucketId = String(formData.get("bucketId") ?? "") || null;
+  const transactionType = String(formData.get("transactionType") ?? "") as TransactionType;
+  const dateValue = String(formData.get("transactionDate") ?? "");
+  const description = String(formData.get("description") ?? "").trim() || null;
+  const merchantNameRaw = String(formData.get("merchantNameRaw") ?? "").trim() || null;
+  const amountInput = String(formData.get("amount") ?? "0");
+
+  const existing = await prisma.transaction.findFirst({
+    where: { id: transactionId, householdId: household.id },
+  });
+  if (!existing) throw new Error("Transaction not found");
+
+  if (!VALID_TYPES.includes(transactionType)) throw new Error("Invalid transaction type");
+  if (!dateValue) throw new Error("Date is required");
+
+  const magnitudeCents = Math.abs(dollarsToCents(amountInput));
+  const amountCents = transactionType === "spend" ? -magnitudeCents : magnitudeCents;
+
+  if (accountId) {
+    const account = await prisma.financialAccount.findFirst({
+      where: { id: accountId, householdId: household.id },
+    });
+    if (!account) throw new Error("Account not found");
+  }
+  if (bucketId) {
+    const bucket = await prisma.bucket.findFirst({
+      where: { id: bucketId, householdId: household.id },
+    });
+    if (!bucket) throw new Error("Bucket not found");
+  }
+
+  await prisma.transaction.update({
+    where: { id: transactionId },
+    data: {
+      accountId,
+      bucketId,
+      transactionType,
+      amountCents,
+      transactionDate: new Date(dateValue),
+      description,
+      merchantNameRaw,
+      categorizationSource: bucketId ? "manual" : "uncategorized",
+    },
+  });
+
+  await logAudit({
+    householdId: household.id,
+    entityType: "Transaction",
+    entityId: transactionId,
+    actorUserId: userId,
+    action: "update",
+    diff: { amountCents, transactionType, bucketId, accountId, description, merchantNameRaw },
+  });
+
+  revalidatePath("/transactions");
+  revalidatePath("/");
+  redirect("/transactions");
+}
+
+/**
+ * Quick inline bucket-only recategorize (FR-011) — same-page action, no redirect, unlike
+ * the full `editTransaction` which lives on its own page.
+ */
+export async function updateTransactionBucket(formData: FormData) {
+  const { household, userId } = await requireHousehold();
+  const transactionId = String(formData.get("transactionId") ?? "");
+  const bucketId = String(formData.get("bucketId") ?? "") || null;
+
+  const existing = await prisma.transaction.findFirst({
+    where: { id: transactionId, householdId: household.id },
+  });
+  if (!existing) throw new Error("Transaction not found");
+
+  if (bucketId) {
+    const bucket = await prisma.bucket.findFirst({
+      where: { id: bucketId, householdId: household.id },
+    });
+    if (!bucket) throw new Error("Bucket not found");
+  }
+
+  await prisma.transaction.update({
+    where: { id: transactionId },
+    data: { bucketId, categorizationSource: bucketId ? "manual" : "uncategorized" },
+  });
+
+  await logAudit({
+    householdId: household.id,
+    entityType: "Transaction",
+    entityId: transactionId,
+    actorUserId: userId,
+    action: "update",
+    diff: { bucketId },
+  });
+
+  revalidatePath("/transactions");
+  revalidatePath("/");
+}
+
 export async function deleteTransaction(formData: FormData) {
   const { household, userId } = await requireHousehold();
   const transactionId = String(formData.get("transactionId") ?? "");
