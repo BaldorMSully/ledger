@@ -1,7 +1,12 @@
 import { requireHousehold } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
-import { deleteAllTransactions, deleteTransactionsInRange, revertCsvImport } from "./actions";
+import {
+  deleteAllTransactions,
+  deleteTransactionsInRange,
+  revertCsvImport,
+  updateRollupDateSource,
+} from "./actions";
 
 export default async function SettingsPage() {
   const { household } = await requireHousehold();
@@ -19,6 +24,41 @@ export default async function SettingsPage() {
   return (
     <div className="flex flex-col gap-10">
       <h1 className="text-xl font-semibold">Settings</h1>
+
+      <section className="flex flex-col gap-3">
+        <h2 className="text-sm font-medium">Which date drives roll-ups</h2>
+        <p className="text-sm text-zinc-500 dark:text-zinc-400">
+          Applies to the weekly view, monthly view, transaction filters, bucket drill-down, and
+          dashboard pacing for the whole household — not a personal preference. Takes effect
+          immediately.
+        </p>
+        <form action={updateRollupDateSource} className="flex flex-col gap-2 text-sm">
+          <label className="flex items-center gap-2">
+            <input
+              type="radio"
+              name="rollupDateSource"
+              value="recorded"
+              defaultChecked={household.rollupDateSource === "recorded"}
+            />
+            Recorded date (the date on each transaction — from the bank export or manual entry)
+          </label>
+          <label className="flex items-center gap-2">
+            <input
+              type="radio"
+              name="rollupDateSource"
+              value="as_purchased"
+              defaultChecked={household.rollupDateSource === "as_purchased"}
+            />
+            As-purchased date, when set (falls back to the recorded date otherwise)
+          </label>
+          <button
+            type="submit"
+            className="mt-1 w-fit rounded-full bg-foreground px-4 py-2 text-sm font-medium text-background"
+          >
+            Save
+          </button>
+        </form>
+      </section>
 
       <section className="flex flex-col gap-3">
         <h2 className="text-sm font-medium">Revert a CSV import</h2>

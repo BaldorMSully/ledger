@@ -108,7 +108,9 @@ export async function commitCsvImport(formData: FormData) {
           accountId: batch.accountId,
           amountCents: row.parsedAmountCents,
           transactionDate: row.parsedDate,
-          postedDate: row.parsedDate,
+          // asPurchasedDate intentionally left unset (spec 002, FR-008/FR-012) - CSV import
+          // only ever knows the bank's recorded date; a household member fills this in
+          // manually afterward if a charge physically happened on a different day.
           transactionType: row.parsedAmountCents < 0 ? "spend" : "income",
           description: row.parsedDescription,
           source: "csv_import",

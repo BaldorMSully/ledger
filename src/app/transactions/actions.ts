@@ -17,6 +17,7 @@ export async function createTransaction(formData: FormData) {
   const bucketId = String(formData.get("bucketId") ?? "") || null;
   const transactionType = String(formData.get("transactionType") ?? "") as TransactionType;
   const dateValue = String(formData.get("transactionDate") ?? "");
+  const asPurchasedDateValue = String(formData.get("asPurchasedDate") ?? "").trim();
   const description = String(formData.get("description") ?? "").trim() || null;
   const merchantNameRaw = String(formData.get("merchantNameRaw") ?? "").trim() || null;
   const amountInput = String(formData.get("amount") ?? "0");
@@ -50,7 +51,7 @@ export async function createTransaction(formData: FormData) {
       transactionType,
       amountCents,
       transactionDate: new Date(dateValue),
-      postedDate: new Date(dateValue),
+      asPurchasedDate: asPurchasedDateValue ? new Date(asPurchasedDateValue) : null,
       description,
       merchantNameRaw,
       source: "manual",
@@ -81,6 +82,7 @@ export async function editTransaction(formData: FormData) {
   const bucketId = String(formData.get("bucketId") ?? "") || null;
   const transactionType = String(formData.get("transactionType") ?? "") as TransactionType;
   const dateValue = String(formData.get("transactionDate") ?? "");
+  const asPurchasedDateValue = String(formData.get("asPurchasedDate") ?? "").trim();
   const description = String(formData.get("description") ?? "").trim() || null;
   const merchantNameRaw = String(formData.get("merchantNameRaw") ?? "").trim() || null;
   const amountInput = String(formData.get("amount") ?? "0");
@@ -117,6 +119,7 @@ export async function editTransaction(formData: FormData) {
       transactionType,
       amountCents,
       transactionDate: new Date(dateValue),
+      asPurchasedDate: asPurchasedDateValue ? new Date(asPurchasedDateValue) : null,
       description,
       merchantNameRaw,
       categorizationSource: bucketId ? "manual" : "uncategorized",

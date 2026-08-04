@@ -2,6 +2,9 @@ import { describe, it, expect } from "vitest";
 import {
   addMonths,
   currentMonthStart,
+  effectiveDate,
+  effectiveDateFetchWhere,
+  inEffectiveWindow,
   monthInputValue,
   monthProgressPercent,
   parseMonthInput,
@@ -94,5 +97,72 @@ describe("monthProgressPercent", () => {
     // 2026-08-01 01:30 UTC is still July 31 evening in New York — should read
     // as the last day of July (100%), not the first day of August.
     expect(monthProgressPercent(new Date("2026-08-01T01:30:00Z"))).toBe(100);
+  });
+});
+
+describe("effectiveDate", () => {
+  const recordedDate = new Date("2026-08-01T00:00:00Z");
+  const asPurchasedDate = new Date("2026-07-25T00:00:00Z");
+
+  it("uses transactionDate when the source is 'recorded'", () => {
+    expect(
+      effectiveDate({ transactionDate: recordedDate, asPurchasedDate }, "recorded")
+    ).toBe(recordedDate);
+  });
+
+  it("uses asPurchasedDate when the source is 'as_purchased' and it's set", () => {
+    expect(
+      effectiveDate({ transactionDate: recordedDate, asPurchasedDate }, "as_purchased")
+    ).toBe(asPurchasedDate);
+  });
+
+  it("falls back to transactionDate when 'as_purchased' is selected but unset", () => {
+    expect(
+      effectiveDate(
+        { transactionDate: recordedDate, asPurchasedDate: null },
+        "as_purchased"
+      )
+    ).toBe(recordedDate);
+  });
+});
+
+describe("effectiveDateFetchWhere", () => {
+  it("ORs both raw date columns over the window", () => {
+    const start = new Date("2026-08-02T00:00:00Z");
+    const end = new Date("2026-08-09T00:00:00Z");
+    expect(effectiveDateFetchWhere(start, end)).toEqual({
+      OR: [
+        { transactionDate: { gte: start, lt: end } },
+        { asPurchasedDate: { gte: start, lt: end } },
+      ],
+    });
+  });
+});
+
+describe("inEffectiveWindow", () => {
+  const start = new Date("2026-08-02T00:00:00Z");
+  const end = new Date("2026-08-09T00:00:00Z");
+
+  it("includes a transaction whose recorded date is in-window under 'recorded'", () => {
+    const tx = { transactionDate: new Date("2026-08-05T00:00:00Z"), asPurchasedDate: null };
+    expect(inEffectiveWindow(tx, "recorded", start, end)).toBe(true);
+  });
+
+  it("excludes a transaction fetched only because its as-purchased date matched, when the setting is 'recorded'", () => {
+    // Posted Aug 1 (outside this window) but as-purchased Aug 5 (inside) - the OR fetch
+    // would pull this row in, but under 'recorded' it must not count toward this window.
+    const tx = {
+      transactionDate: new Date("2026-08-01T00:00:00Z"),
+      asPurchasedDate: new Date("2026-08-05T00:00:00Z"),
+    };
+    expect(inEffectiveWindow(tx, "recorded", start, end)).toBe(false);
+  });
+
+  it("includes that same transaction under 'as_purchased'", () => {
+    const tx = {
+      transactionDate: new Date("2026-08-01T00:00:00Z"),
+      asPurchasedDate: new Date("2026-08-05T00:00:00Z"),
+    };
+    expect(inEffectiveWindow(tx, "as_purchased", start, end)).toBe(true);
   });
 });

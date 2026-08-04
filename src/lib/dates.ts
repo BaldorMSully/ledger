@@ -76,3 +76,49 @@ export function monthProgressPercent(now: Date = new Date()): number {
   const totalDays = daysInMonth(monthStart);
   return Math.round((day / totalDays) * 10000) / 100;
 }
+
+/** Matches the Prisma `RollupDateSource` enum — which date basis drives every roll-up. */
+export type RollupDateSource = "recorded" | "as_purchased";
+
+/**
+ * The date a transaction is grouped/filtered by, given the household's roll-up
+ * date-source setting: `transactionDate` unless `as_purchased` is selected AND the
+ * transaction has one set, in which case that takes over (spec 002, FR-009).
+ */
+export function effectiveDate(
+  tx: { transactionDate: Date; asPurchasedDate: Date | null },
+  source: RollupDateSource
+): Date {
+  if (source === "as_purchased" && tx.asPurchasedDate) {
+    return tx.asPurchasedDate;
+  }
+  return tx.transactionDate;
+}
+
+/**
+ * A Prisma `where` fragment that's guaranteed to fetch every transaction whose
+ * `effectiveDate` (under any `RollupDateSource`) could fall in `[start, endExclusive)` —
+ * i.e. either raw date column landing in the window. Callers must still filter the
+ * fetched rows down with `inEffectiveWindow` using the household's actual setting,
+ * since a row can match this OR on one column while its *effective* date (under the
+ * setting actually in effect) falls outside the window.
+ */
+export function effectiveDateFetchWhere(start: Date, endExclusive: Date) {
+  return {
+    OR: [
+      { transactionDate: { gte: start, lt: endExclusive } },
+      { asPurchasedDate: { gte: start, lt: endExclusive } },
+    ],
+  };
+}
+
+/** Whether `tx`'s effective date (under `source`) falls in `[start, endExclusive)`. */
+export function inEffectiveWindow(
+  tx: { transactionDate: Date; asPurchasedDate: Date | null },
+  source: RollupDateSource,
+  start: Date,
+  endExclusive: Date
+): boolean {
+  const date = effectiveDate(tx, source);
+  return date >= start && date < endExclusive;
+}

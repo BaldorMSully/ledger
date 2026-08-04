@@ -60,6 +60,19 @@ export default async function NewTransactionPage() {
         </label>
 
         <label className="flex flex-col gap-1 text-sm">
+          As-purchased date (optional)
+          <input
+            type="date"
+            name="asPurchasedDate"
+            className="rounded border border-black/10 bg-transparent px-2 py-1 dark:border-white/20"
+          />
+          <span className="text-xs text-zinc-500 dark:text-zinc-400">
+            Only fill this in if the charge physically happened on a different day than the
+            date above (e.g. a Saturday purchase posted the following Sunday).
+          </span>
+        </label>
+
+        <label className="flex flex-col gap-1 text-sm">
           Account
           <select
             name="accountId"
