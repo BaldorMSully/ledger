@@ -73,11 +73,17 @@ model User {
   @@map("app_users")
 }
 
+enum RollupDateSource {
+  recorded
+  as_purchased
+}
+
 model Household {
   id   String @id @default(cuid())
   name String
 
   lastCheckInCompletedAt DateTime?
+  rollupDateSource       RollupDateSource @default(recorded)
 
   members             HouseholdMember[]
   financialAccounts   FinancialAccount[]
@@ -215,7 +221,9 @@ model Transaction {
 
   amountCents     Int // signed: negative = spend, positive = income, by convention
   transactionDate DateTime
-  postedDate      DateTime?
+  // Manually-entered only (never set by CSV import) - when a charge posted/recorded on a
+  // different day than it physically happened, e.g. a Saturday purchase posted Sunday.
+  asPurchasedDate DateTime?
   transactionType TransactionType
 
   linkedTransactionId String?      @unique

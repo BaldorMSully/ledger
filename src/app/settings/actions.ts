@@ -4,7 +4,40 @@ import { revalidatePath } from "next/cache";
 import { requireHousehold } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
-import type { Prisma } from "@/generated/prisma/client";
+import type { Prisma, RollupDateSource } from "@/generated/prisma/client";
+
+const VALID_ROLLUP_DATE_SOURCES: RollupDateSource[] = ["recorded", "as_purchased"];
+
+/**
+ * The one shared, household-wide setting (spec 002, FR-009) controlling which date every
+ * roll-up (weekly view, monthly view, transaction filters, drill-down, dashboard pacing)
+ * groups transactions by. Not a danger-zone action - reversible, no confirmation needed.
+ */
+export async function updateRollupDateSource(formData: FormData) {
+  const { household, userId } = await requireHousehold();
+  const rollupDateSource = String(formData.get("rollupDateSource") ?? "") as RollupDateSource;
+  if (!VALID_ROLLUP_DATE_SOURCES.includes(rollupDateSource)) {
+    throw new Error("Invalid roll-up date source");
+  }
+
+  await prisma.household.update({
+    where: { id: household.id },
+    data: { rollupDateSource },
+  });
+
+  await logAudit({
+    householdId: household.id,
+    entityType: "Household",
+    entityId: household.id,
+    actorUserId: userId,
+    action: "update",
+    diff: { rollupDateSource },
+  });
+
+  revalidatePath("/settings");
+  revalidatePath("/transactions");
+  revalidatePath("/");
+}
 
 /**
  * Undoes one CSV import: deletes every transaction it created (including anything since

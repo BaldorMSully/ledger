@@ -40,7 +40,7 @@ name and **Sign out** on the right.
 
 | Screen | URL | What it's for |
 |---|---|---|
-| **Dashboard** | `/` | This month's budget at a glance: allocated vs. spent per bucket |
+| **Dashboard** | `/` | This week's (or month's) budget at a glance: target vs. spent per bucket |
 | **Transactions** | `/transactions` | The running list of everything entered; add or delete here |
 | **Buckets** | `/buckets` | Create budget categories and set each month's allocation |
 | **Accounts** | `/accounts` | The accounts (checking, savings, credit card, …) transactions belong to |
@@ -90,7 +90,8 @@ Reachable from the **+ Add transaction** button on the Dashboard or Transactions
 |---|---|
 | **Type** | `Spend` (default), `Income`, or `Transfer`. **This sets the sign** — see below. |
 | **Amount ($)** | Always type a **positive** number. The app applies the sign from the Type. |
-| **Date** | Defaults to today. |
+| **Date** | Defaults to today. This is the transaction's normal/recorded date. |
+| **As-purchased date** | Optional, and blank by default — the app never guesses it for you. Only fill this in when a charge physically happened on a different day than the date above (the classic case: a Saturday purchase that the bank posts as Sunday). |
 | **Account** | Optional — leave as *— none —* if you don't want to attribute it yet. |
 | **Bucket** | Optional — *— uncategorized —* leaves it out of every bucket total. |
 | **Merchant** | Optional. |
@@ -108,13 +109,21 @@ Click **Save** and you're returned to the Transactions list.
   correct a transaction, delete it and add it again.
 
 ### Dashboard (`/`)
-- **Month navigation:** `← Prev` / month name / `Next →`. Defaults to the current month.
-- Table of your active buckets: **Bucket · Allocated · Spent · Remaining**.
-  - **Allocated** — what you budgeted for that bucket this month (0 if unset).
-  - **Spent** — the sum of **Spend**-type transactions assigned to that bucket this month.
-  - **Remaining** — Allocated − Spent. **Turns red when you've overspent** (negative).
+- **Week / Month toggle**, top right. **Week is the default** — it matches your Sunday check-in
+  rhythm. A fiscal week runs **Sunday–Saturday**; the small label under the date range (e.g.
+  "Period 2, Week 3 of 4") is just for navigation, it never affects any budget number.
+- **Prev / Next** navigation, either by week or by month depending on which view you're on.
+- Table of your active buckets: **Bucket · Allocated/Weekly target · Spent · Remaining**.
+  - In the **weekly** view, each bucket's target is its monthly allocation divided across
+    however many fiscal weeks fall in that calendar month (usually 4, sometimes 5) — a week
+    that spans two months counts toward whichever month has 4+ of its 7 days.
+  - In the **monthly** view, this is unchanged from before: the full monthly allocation.
+  - **Spent** — the sum of **Spend**-type transactions assigned to that bucket in the window
+    you're viewing.
+  - **Remaining** — target − Spent. **Turns red when you've overspent** (negative).
 - Only **Spend** transactions that have a **bucket** count toward Spent. Income, transfers, and
   uncategorized spending won't show up in a bucket row.
+- Click a bucket's name to **drill down** into its transactions for that same week or month.
 
 ---
 
@@ -127,6 +136,24 @@ Click **Save** and you're returned to the Transactions list.
   more than two decimals (`12.500`). Type `1200`, not `$1,200`.
 - **You never type a minus sign for normal spending** — choosing **Type = Spend** makes it a
   negative (money out) automatically.
+
+---
+
+## 5a. Which date drives your roll-ups (Settings)
+
+On the **Settings** page there's a **"Which date drives roll-ups"** control with two options:
+
+- **Recorded date** (the default) — the date on each transaction, whether typed manually or
+  pulled from a bank CSV import.
+- **As-purchased date, when set** — uses a transaction's as-purchased date if it has one,
+  otherwise falls back to its recorded date.
+
+This is **one shared setting for the household**, not a personal preference — flipping it
+changes what both of you see. It affects everything date-based: the weekly view, the monthly
+view, transaction list filters, bucket drill-down, and dashboard pacing. It takes effect
+immediately — no save/recompute delay. Use **recorded date** when reconciling against your bank
+statement, and **as-purchased date** for the budget conversation itself, once you've filled in
+as-purchased dates on the transactions that need it.
 
 ---
 
