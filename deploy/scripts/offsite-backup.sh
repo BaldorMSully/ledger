@@ -11,7 +11,10 @@ set -o pipefail
 
 BACKUP_DIR="/backups"
 SECRETS_DIR="/secrets"
-RCLONE_CONFIG="${SECRETS_DIR}/rclone.conf"
+# The rclone/rclone image sets XDG_CONFIG_HOME=/config, so `rclone config` (run via
+# `docker run -v .../backup-secrets:/config rclone/rclone config`, see README §4) writes
+# to /config/rclone/rclone.conf — an extra `rclone/` subdirectory, not /config directly.
+RCLONE_CONFIG="${SECRETS_DIR}/rclone/rclone.conf"
 AGE_RECIPIENT="${AGE_RECIPIENT:?AGE_RECIPIENT not set in .env}"
 RCLONE_REMOTE="${RCLONE_REMOTE:-b2}"
 RCLONE_PATH="${RCLONE_REMOTE}:ledger-backups"

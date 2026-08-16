@@ -92,8 +92,9 @@ should touch this chat, since the B2 application key is a live credential):
    ```
    Choose `n` (new remote), name it `b2` (must match `RCLONE_REMOTE` in `.env`), type
    `b2`, paste in the keyID as `account` and the applicationKey as `key`, accept defaults
-   for the rest. This writes `rclone.conf` into `backup-secrets/` on the host, which the
-   `offsite-backup` container mounts read-only.
+   for the rest. The image sets `XDG_CONFIG_HOME=/config`, so this writes
+   `backup-secrets/rclone/rclone.conf` on the host (note the extra `rclone/`
+   subdirectory) — `offsite-backup.sh` already points at that exact path.
 4. Add `AGE_RECIPIENT` (already filled in `.env.nas.example` — it's the *public* half of
    the existing keypair, safe to reuse) and `RCLONE_REMOTE="b2"` to `.env` on the NAS.
 5. Add the offsite cron line (10 minutes after the main backup, enough time for the dump
