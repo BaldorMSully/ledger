@@ -17,7 +17,11 @@ SECRETS_DIR="/secrets"
 RCLONE_CONFIG="${SECRETS_DIR}/rclone/rclone.conf"
 AGE_RECIPIENT="${AGE_RECIPIENT:?AGE_RECIPIENT not set in .env}"
 RCLONE_REMOTE="${RCLONE_REMOTE:-b2}"
-RCLONE_PATH="${RCLONE_REMOTE}:ledger-backups"
+# B2 bucket names are globally unique across all B2 accounts, so the real bucket name
+# may not be the literal "ledger-backups" suggested in README §4 — must match whatever
+# was actually created, and whatever the Application Key is scoped to.
+B2_BUCKET="${B2_BUCKET:?B2_BUCKET not set in .env — must match the real bucket name}"
+RCLONE_PATH="${RCLONE_REMOTE}:${B2_BUCKET}"
 NTFY_TOPIC="${OFFSITE_NTFY_TOPIC:-nas-homelab-ledger-offsite-backup}"
 
 notify() {
