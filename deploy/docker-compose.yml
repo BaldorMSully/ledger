@@ -46,6 +46,20 @@ services:
     networks:
       - finance-net
 
+  # One-shot, run a few minutes after `backup` by its own crontab entry (see
+  # deploy/README.md). rclone/rclone is Alpine-based, so `age` installs the same way it
+  # was validated during keypair generation (`docker run --rm alpine apk add age`).
+  # No network needed — this only reads the local dump and talks to Backblaze B2.
+  offsite-backup:
+    image: rclone/rclone:latest
+    profiles: ["offsite-backup"]
+    env_file: .env
+    volumes:
+      - /volume2/backups/ledger:/backups:ro
+      - ./backup-secrets:/secrets:ro
+      - ./scripts:/scripts:ro
+    entrypoint: ["/bin/sh", "/scripts/offsite-backup.sh"]
+
 networks:
   finance-net:
     external: true

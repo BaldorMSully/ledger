@@ -73,17 +73,43 @@ the nightly ping *doesn't* arrive (which also catches the cron never firing at a
 failure-only alert can't). If unset, the script posts successes to the ntfy topic instead
 so there's still a positive signal.
 
-**Off-box copy — not scripted here, needs your own credentials to wire up.** Once the
-nightly local dump is working, add a second step (either inside `backup.sh` or a separate
-cron line) that encrypts the newest dump and ships it off-box, e.g.:
+**Off-box copy — the `offsite-backup` profile, target: Backblaze B2.** Runs a few minutes
+after the main backup, as its own one-shot container (`rclone/rclone` image, `age`
+installed via `apk` at run time — same validated pattern as the keypair generation step).
+It finds the newest local dump, encrypts it with the age keypair already on the NAS, and
+`rclone copy`s the ciphertext to B2. Steps to wire this up (yours to do — none of this
+should touch this chat, since the B2 application key is a live credential):
 
-```bash
-age -r <your-age-public-key> -o ledger-latest.sql.gz.age ledger-<timestamp>.sql.gz
-rclone copy ledger-latest.sql.gz.age remote:ledger-backups/   # Backblaze B2 or OneDrive remote
-```
-
-This needs an `age` keypair and an `rclone` remote configured on the NAS — left for you to
-set up since it depends on which off-box target you actually want to use.
+1. Sign up at backblaze.com/b2. Create a **private** bucket, e.g. `ledger-backups`.
+2. Account → App Keys → Add a New Application Key, **scoped to just that bucket** (not
+   the master key). Copy the keyID + applicationKey somewhere safe — a password manager,
+   not a chat or a committed file.
+3. On the NAS, create the rclone remote yourself in an interactive session so the
+   applicationKey never gets typed anywhere it could be logged:
+   ```bash
+   mkdir -p /volume1/docker/ledger/backup-secrets
+   docker run -it --rm -v /volume1/docker/ledger/backup-secrets:/config rclone/rclone config
+   ```
+   Choose `n` (new remote), name it `b2` (must match `RCLONE_REMOTE` in `.env`), type
+   `b2`, paste in the keyID as `account` and the applicationKey as `key`, accept defaults
+   for the rest. This writes `rclone.conf` into `backup-secrets/` on the host, which the
+   `offsite-backup` container mounts read-only.
+4. Add `AGE_RECIPIENT` (already filled in `.env.nas.example` — it's the *public* half of
+   the existing keypair, safe to reuse) and `RCLONE_REMOTE="b2"` to `.env` on the NAS.
+5. Add the offsite cron line (10 minutes after the main backup, enough time for the dump
+   to finish first):
+   ```cron
+   10 3 * * * flock -n /tmp/ledger-offsite-backup.lock docker compose -f /volume1/docker/ledger/docker-compose.yml --profile offsite-backup run --rm offsite-backup >> /volume1/docker/ledger/offsite-backup.log 2>&1
+   ```
+6. Test it once manually before trusting the cron:
+   ```bash
+   cd /volume1/docker/ledger
+   docker compose --profile offsite-backup run --rm offsite-backup
+   ```
+   Confirm a new object lands in the B2 bucket (via the Backblaze web UI) and that the
+   ntfy topic `nas-homelab-ledger-offsite-backup` gets an OK ping — subscribe to it the
+   same way as the existing `nas-homelab-ledger-backup` topic (deliberately a separate
+   topic, so an offsite failure and a local-dump failure stay distinguishable).
 
 ## 5. Restore test
 
